@@ -5,7 +5,7 @@
 #include <cmath>
 #include <sys/dispatch.h>
 #include <sys/neutrino.h>
-#include <cstring> // For memcpy
+#include <cstring>      // For memcpy
 
 // Define the channel names for the Computer System
 #define display_channel_name "dipi_display"
@@ -14,13 +14,18 @@
 #define COMPUTER_CHANNEL_NAME "dipi_computer"
 #define COMMS_CHANNEL_NAME "dipi_comms"
 
+
+// Constructor: Initialize the shared memory variables and the operator channel
 ComputerSystem::ComputerSystem() : shm_fd(-1), shared_mem(nullptr), shm_sem(SEM_FAILED), running(false), operator_chid(-1) {}
 
+
+// Destructor: Join the threads and cleanup the shared memory to avoid leaks
 ComputerSystem::~ComputerSystem() {
     joinThread();
     cleanupSharedMemory();
 }
 
+// Method to initialize the shared memory
 bool ComputerSystem::initializeSharedMemory() {
 	// Open the shared memory object
 	while (true) {
@@ -33,7 +38,7 @@ bool ComputerSystem::initializeSharedMemory() {
             continue;
         }
 
-		// Map the shared memory object into the process's address space
+		// Map the shared memory object into the process's address space to avoid leaks
         // In case of error, retry until successful
         shared_mem = (SharedMemory*) mmap(NULL, sizeof(SharedMemory), PROT_READ, MAP_SHARED, shm_fd, 0);
 
@@ -45,19 +50,18 @@ bool ComputerSystem::initializeSharedMemory() {
             continue;
         }
 
-
         // Open the semaphore for the shared memory
         shm_sem = sem_open(SHM_SEM_NAME, 0);
         if (shm_sem == SEM_FAILED) {
             perror("ComputerSystem: sem_open failed (will run without sync)");
         }
-
         return true;
     }
     return false;
 }
 
-// Clean up the shared memory
+
+// Method to cleanup the shared memory to avoid leaks
 void ComputerSystem::cleanupSharedMemory() {
     // Close the semaphore for the shared memory
     if (shm_sem != SEM_FAILED) {
@@ -76,8 +80,10 @@ void ComputerSystem::cleanupSharedMemory() {
     }
 }
 
-// Start monitoring the airspace
+
+// Method to start monitoring the airspace
 bool ComputerSystem::startMonitoring() {
+    // Initialize the shared memory
     if (initializeSharedMemory()) {
         running = true; 
         operator_chid = ChannelCreate(0); // Create the channel for the operator input
@@ -89,12 +95,14 @@ bool ComputerSystem::startMonitoring() {
         monitorOperatorInput = std::thread(&ComputerSystem::processMessage, this);
         return true;
     } else {
+        // If the shared memory is not initialized, print an error message and return false
         std::cerr << "Failed to initialize shared memory. Monitoring not started.\n";
         return false;
     }
 }
 
-// Join the threads
+
+// Method to join the threads to avoid leaks
 void ComputerSystem::joinThread() {
     if (monitorThread.joinable()) {
         monitorThread.join();
@@ -105,13 +113,14 @@ void ComputerSystem::joinThread() {
     }
 }
 
-// Monitor the airspace
+
+// Method to monitor the airspace
 void ComputerSystem::monitorAirspace() {
 	// Create a timer for the airspace monitoring
-	ATCTimer timer(3,0);
-	std::vector<msg_plane_info> plane_data_vector; // Vector to store plane data
+	ATCTimer timer(3,0); // Timer ticks every 3 seconds
+	std::vector<msg_plane_info> plane_data_vector; // Vector to store plane data for the current iteration
 	uint64_t timestamp; // Timestamp of the last write
-    // Keep monitoring indefinitely until 'stopMonitoring' is called
+    // Keep monitoring indefinitely until the shared memory is empty
 	while (shared_mem->is_empty.load()) {
 		timer.waitTimer();
 	}
@@ -144,12 +153,10 @@ void ComputerSystem::monitorAirspace() {
 	// Monitoring loop ended
 }
 
-void ComputerSystem::checkCollision(uint64_t currentTime, std::vector<msg_plane_info> planes) {
-    // Detect collisions between planes in the airspace within the time constraint
-    // Iterate through each pair of planes and in case of collision, store the pair of plane IDs that are predicted to collide
-    // Use the function checkAxes provided below to check if two planes will collide
-    // If a collision is detected, store the pair of plane IDs in the collisionPairs vector
 
+// Method to check for collisions between planes in the airspace within the time constraint
+void ComputerSystem::checkCollision(uint64_t currentTime, std::vector<msg_plane_info> planes) {
+    // Iterate through each pair of planes and in case of collision, store the pair of plane IDs that are predicted to collide
     std::vector<std::pair<int, int>> collisionPairs; // Vector to store pairs of colliding planes
     for (size_t i = 0; i < planes.size(); ++i) {
         for (size_t j = i + 1; j < planes.size(); ++j) {
@@ -178,12 +185,13 @@ void ComputerSystem::checkCollision(uint64_t currentTime, std::vector<msg_plane_
     sendCollisionToDisplay(msg_to_send);
 }
 
-// Check if two planes will collide within the time constraint
+
+
+// Method to check if two planes will collide within the time constraint
 bool ComputerSystem::checkAxes(msg_plane_info plane1, msg_plane_info plane2) {
 
     // If velocities are identical, relative positions never change, so we only check at time t=0
     if (sameSpeed(plane1.VelocityX, plane2.VelocityX) && sameSpeed(plane1.VelocityY, plane2.VelocityY) && sameSpeed(plane1.VelocityZ, plane2.VelocityZ)) {
-
         // If the planes will collide within the time constraint, return true
         if (std::fabs(plane1.PositionX - plane2.PositionX) <= CONSTRAINT_X && std::fabs(plane1.PositionY - plane2.PositionY) <= CONSTRAINT_Y && std::fabs(plane1.PositionZ - plane2.PositionZ) <= CONSTRAINT_Z) {
             return true;
@@ -192,7 +200,6 @@ bool ComputerSystem::checkAxes(msg_plane_info plane1, msg_plane_info plane2) {
             return false;
         }
     }
-
     // Check if the planes will collide within the time constraint for unequal velocities
     for (int t = 0; t <= timeConstraintCollisionFreq; t++) {
         double futureX1 = plane1.PositionX + plane1.VelocityX * t;
@@ -208,11 +215,11 @@ bool ComputerSystem::checkAxes(msg_plane_info plane1, msg_plane_info plane2) {
             return true;
         }
     }
-
     return false;
 }
 
-// Send the collision message to the Display system
+
+// Method to send the collision message to the Display system
 void ComputerSystem::sendCollisionToDisplay(const Message_inter_process& msg){
     // Open the channel for the Display system
 	int display_channel = name_open(display_channel_name, 0);
@@ -229,20 +236,21 @@ void ComputerSystem::sendCollisionToDisplay(const Message_inter_process& msg){
     name_close(display_channel);
 }
 
-// Check if two planes have the same speed
+
+// Method to check if two planes have the same speed
 bool ComputerSystem::sameSpeed(double speed1, double speed2) {
     const double NEGLIGIBLE_DIFFERENCE = 1e-6;
     return std::fabs(speed1 - speed2) < NEGLIGIBLE_DIFFERENCE;
 }
 
-// Process messages from the operator
+
+// Method to process messages from the operator
 void ComputerSystem::processMessage() {
     if (operator_chid == -1) {
         std::cerr << "ComputerSystem: No operator channel available\n";
         return;
     }
-
-    // Listen for messages from the operator
+    // Listen for messages from the operator until the listen flag is false
     while (listen) {
         Message_inter_process msg{};
         // Receive message from the operator
@@ -261,6 +269,7 @@ void ComputerSystem::processMessage() {
         MsgReply(rcvid, 0, &reply, sizeof(reply));
 
         // Handle different message types from the operator
+        // Handles only two message types: CHANGE_TIME_CONSTRAINT_COLLISIONS and EXIT
         switch (msg.type) {
             case MessageType::CHANGE_TIME_CONSTRAINT_COLLISIONS: {
                 if (msg.dataSize >= sizeof(int)) {
@@ -280,7 +289,8 @@ void ComputerSystem::processMessage() {
     }
 }
 
-// Send messages to the Communications System
+
+// Method to send messages to the Communications System
 void ComputerSystem::sendMessagesToComms(const Message& msg) {
     // Open the channel for the Communications System
     int coid = name_open(COMMS_CHANNEL_NAME, 0);
@@ -289,6 +299,7 @@ void ComputerSystem::sendMessagesToComms(const Message& msg) {
         return;
     }
 
+    // Create a message to send to the Communications System
     Message_inter_process ipc_msg{};
     ipc_msg.header = true;
     ipc_msg.type = msg.type;
@@ -298,6 +309,7 @@ void ComputerSystem::sendMessagesToComms(const Message& msg) {
         std::memcpy(ipc_msg.data.data(), msg.data, msg.dataSize);
     }
 
+    // Send the message to the Communications System
     int reply;
     int status = MsgSend(coid, &ipc_msg, sizeof(ipc_msg), &reply, sizeof(reply));
     if (status == -1) {
@@ -306,7 +318,8 @@ void ComputerSystem::sendMessagesToComms(const Message& msg) {
     name_close(coid);
 }
 
-// Handle time constraint change
+
+// Method to handle time constraint change
 void ComputerSystem::handleTimeConstraintChange(const Message& msg) {
     if (msg.data && msg.dataSize >= sizeof(int)) {
         int newConstraint;

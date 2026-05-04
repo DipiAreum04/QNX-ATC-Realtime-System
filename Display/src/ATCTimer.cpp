@@ -2,6 +2,7 @@
 
 // Constructor to initialize timer with seconds and milliseconds
 ATCTimer::ATCTimer(uint32_t sec, uint32_t msec) {
+
 	// Create a message channel for communication
 	channel_id = ChannelCreate(0);
 	// Attach to the message channel
@@ -21,7 +22,7 @@ ATCTimer::ATCTimer(uint32_t sec, uint32_t msec) {
 	}
 
 	// Set up the timer specifications (interval and initial expiration)
-	setTimerSpecification(sec,1000000* msec); //converting ms to ns
+	setTimerSpecification(sec,1000000* msec); // Convert milliseconds to nanoseconds
 
 	// Get the system's cycles per second for time calculations
 	cycles_per_sec = SYSPAGE_ENTRY(qtime)->cycles_per_sec;
@@ -29,12 +30,16 @@ ATCTimer::ATCTimer(uint32_t sec, uint32_t msec) {
 
 }
 
+
+// Destructor
 ATCTimer::~ATCTimer() {}
 
-//Function to start the timer
+
+// Function to start the timer
 void ATCTimer::startTimer(){
 	timer_settime(timer_id, 0, &timer_spec, NULL);
 }
+
 
 // Function to set the timer specifications (time intervals)
 void ATCTimer::setTimerSpecification(uint32_t sec, uint32_t nano){ // pure periodic timer
@@ -50,24 +55,26 @@ void ATCTimer::setTimerSpecification(uint32_t sec, uint32_t nano){ // pure perio
 	timer_settime(timer_id, 0, &timer_spec, NULL); //starts the timer
 }
 
+
 // Function to block and wait for the timer's signal
 void ATCTimer::waitTimer(){
-	// Receive a message (this call blocks until the timer pulses)
-	int receive_message_id; //to identify source
+	// Receive a message (this call blocks until the timer pulse occurs)
+	int receive_message_id; // To identify the source of the message
 	receive_message_id = MsgReceive(channel_id, &msg_buffer, sizeof(msg_buffer), NULL);
 }
 
+
 // Function to record the current time (in cycles)
 void ATCTimer::tick(){
-	// Record the current number of cycles (for time measurement)
+	// Record the current number of cycles for time measurement
 	tick_cycles = ClockCycles();
 }
 
+
 // Function to calculate the elapsed time in milliseconds since the last tick
 double ATCTimer::tock(){
-	// Record the current number of cycles (for time measurement)
+	// Record the current number of cycles for time measurement
 	tock_cycles = ClockCycles();
 	// Calculate and return the elapsed time in milliseconds
 	return (double)(tock_cycles - tick_cycles) / cycles_per_sec * 1000.0;
 }
-

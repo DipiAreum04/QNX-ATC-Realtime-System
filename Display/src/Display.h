@@ -15,32 +15,38 @@
 #include <semaphore.h>
 #include "Msg_structs.h"
 
+// Display class
 class Display {
 public:
-    Display();
-    ~Display();
+    Display(); // Constructor
+    ~Display(); // Destructor
 
     bool start();
-    void join();
+    void join(); 
 
 private:
+    // Shared memory methods
     bool initializeSharedMemory();
     void cleanupSharedMemory();
 
+    // Display methods
     void displayLoop();
-    void collisionListener();
     void render(const std::vector<msg_plane_info>& planes, int count, uint64_t timestamp);
 
+    // Method to listen for collision warnings
+    void collisionListener();
+
+    // Shared memory variables
     int shm_fd;
     SharedMemory* shared_mem;
-    sem_t* shm_sem;
+    sem_t* shm_sem; // Shared memory semaphore
 
-    std::thread display_thread;
-    std::thread collision_thread;
-    std::atomic<bool> running;
+    std::thread display_thread; // Thread to display the planes
+    std::thread collision_thread; // Thread to listen for collision warnings
+    std::atomic<bool> running; // Flag to indicate if the display is running
 
-    std::mutex collision_mutex;
-    std::vector<std::string> collision_warnings;
+    std::mutex collision_mutex; // Mutex to synchronize access to the collision warnings
+    std::vector<std::string> collision_warnings; // Vector to store the collision warnings
 };
 
 #endif /* DISPLAY_H_ */

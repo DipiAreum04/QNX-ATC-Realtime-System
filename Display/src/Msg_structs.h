@@ -17,7 +17,7 @@ enum class MessageType {
 };
 
 struct Message {
-    bool header; //intra process; 1: interprocess
+    bool header; // 0: intra-process; 1: inter-process
 	MessageType type;
     int planeID;
     void* data;  // Pointer to the message data
@@ -49,10 +49,9 @@ struct SharedMemory {
 };
 
 struct Message_inter_process {
-	bool header; //intra process; 1: interprocess
+	bool header; // 0: intra-process; 1: inter-process
 	MessageType type;
     int planeID;
     std::array<char, 256> data;  // Pointer to the message data
     size_t dataSize;  // Size of the serialized data
 };
-

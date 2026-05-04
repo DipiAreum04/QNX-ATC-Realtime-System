@@ -9,11 +9,12 @@ CommunicationsSystem::CommunicationsSystem() : chid(-1) {
         std::cerr << "CommunicationsSystem: Failed to create channel\n";
         return;
     }
-
+    // Start the thread and attach it to the HandleCommunications method
     Communications_System = std::thread(&CommunicationsSystem::HandleCommunications, this);
 }
 
-// Destructor: Join the thread and destroy the channel
+
+// Destructor: Join the thread and destroy the channel to avoid leaks
 CommunicationsSystem::~CommunicationsSystem() {
     if (Communications_System.joinable()) {
         Communications_System.join();
@@ -23,7 +24,8 @@ CommunicationsSystem::~CommunicationsSystem() {
     }
 }
 
-// Handle communications with the Aircraft
+
+// Method to handle communications with the aircraft
 void CommunicationsSystem::HandleCommunications() {
     // Listen for messages from the Computer System
     while (true) {
@@ -50,6 +52,7 @@ void CommunicationsSystem::HandleCommunications() {
             break;
         }
 
+        // Create a message to send to the aircraft
         Message toAircraft{};
         toAircraft.header = true;
         toAircraft.type = msg.type;
@@ -60,16 +63,19 @@ void CommunicationsSystem::HandleCommunications() {
     }
 }
 
-// Send a message to the Aircraft
+
+// Method to send a message to the aircraft
 void CommunicationsSystem::messageAircraft(const Message& msg) {
-    std::string channel = "dipi" + std::to_string(msg.planeID); // Create the channel name for the Aircraft
-    int coid = name_open(channel.c_str(), 0); // Open the channel for the Aircraft
+    std::string channel = "dipi" + std::to_string(msg.planeID); // Create the channel name for the aircraft
+    int coid = name_open(channel.c_str(), 0); // Open the channel for the aircraft
+
+    // If the channel is not opened, print an error message and return
     if (coid == -1) {
         std::cerr << "CommunicationsSystem: Failed to connect to aircraft " << msg.planeID << "\n";
         return;
     }
 
-    // Create a message to send to the Aircraft
+    // Create a message to send to the aircraft
     Message_inter_process ipc_msg{};
     ipc_msg.header = true;
     ipc_msg.type = msg.type;
@@ -79,11 +85,13 @@ void CommunicationsSystem::messageAircraft(const Message& msg) {
         std::memcpy(ipc_msg.data.data(), msg.data, msg.dataSize);
     }
 
+    // Send the message to the aircraft
     int reply;
     int status = MsgSend(coid, &ipc_msg, sizeof(ipc_msg), &reply, sizeof(reply));
     if (status == -1) {
         perror("CommunicationsSystem: Failed to send message to aircraft");
     }
-
+    
+    // Close the channel to avoid leaks
     name_close(coid);
 }

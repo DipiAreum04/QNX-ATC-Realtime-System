@@ -3,20 +3,20 @@
 #include <sstream>
 #include <sys/neutrino.h>
 
-// Constructor: Create the channel for the Operator Console and start the thread
+// Constructor: Initialize the channels and shared memory
 OperatorConsole::OperatorConsole(int comms_chid, int computer_chid, SharedMemory* shm)
     : comms_chid(comms_chid), computer_chid(computer_chid), shared_mem(shm) {
     Operator_Console = std::thread(&OperatorConsole::HandleConsoleInputs, this);
 }
 
-// Destructor: Join the thread and destroy the channel
+// Destructor: Join the thread and destroy the channel to avoid leaks
 OperatorConsole::~OperatorConsole() {
     if (Operator_Console.joinable()) {
         Operator_Console.join();
     }
 }
 
-// Handle console inputs
+// Method to handle console inputs
 void OperatorConsole::HandleConsoleInputs() {
     std::cout << "\n===== Operator Console =====" << std::endl;
     std::cout << "  1 <planeID> <Vx> <Vy> <Vz>  - Change heading" << std::endl;
@@ -166,7 +166,4 @@ void OperatorConsole::HandleConsoleInputs() {
         }
         ConnectDetach(coid); // Detach from the Communications System
     }
-}
-
-void OperatorConsole::logCommand(const std::string& command) {
 }
