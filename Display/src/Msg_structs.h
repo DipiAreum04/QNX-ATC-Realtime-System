@@ -52,6 +52,6 @@ struct Message_inter_process {
 	bool header; // 0: intra-process; 1: inter-process
 	MessageType type;
     int planeID;
-    std::array<char, 256> data;  // Pointer to the message data
+    std::array<char, 1024> data;  // Pointer to the message data
     size_t dataSize;  // Size of the serialized data
 };
