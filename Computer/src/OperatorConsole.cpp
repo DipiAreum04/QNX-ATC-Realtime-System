@@ -19,8 +19,8 @@ OperatorConsole::~OperatorConsole() {
 // Method to handle console inputs
 void OperatorConsole::HandleConsoleInputs() {
     std::cout << "\n===== Operator Console =====" << std::endl;
-    std::cout << "  1 <planeID> <Vx> <Vy> <Vz>  - Change heading" << std::endl;
-    std::cout << "  2 <planeID> <x> <y> <z>     - Change position" << std::endl;
+    std::cout << "  1 <planeID> <Vx> <Vy> <Vz>   - Change heading" << std::endl;
+    std::cout << "  2 <planeID> <x> <y> <z>      - Change position" << std::endl;
     std::cout << "  3 <planeID> <altitude>       - Change altitude" << std::endl;
     std::cout << "  4 <planeID>                  - Request augmented info" << std::endl;
     std::cout << "  5 <seconds>                  - Change time constraint" << std::endl;

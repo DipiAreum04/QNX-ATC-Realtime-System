@@ -15,8 +15,13 @@
 #define COMMS_CHANNEL_NAME "dipi_comms"
 
 
-// Constructor: Initialize the shared memory variables and the operator channel
-ComputerSystem::ComputerSystem() : shm_fd(-1), shared_mem(nullptr), shm_sem(SEM_FAILED), running(false), operator_chid(-1) {}
+// Constructor: Initializer order matches member declaration order in ComputerSystem.h
+ComputerSystem::ComputerSystem()
+    : operator_chid(-1),
+      shm_fd(-1),
+      shared_mem(nullptr),
+      shm_sem(SEM_FAILED),
+      running(false) {}
 
 
 // Destructor: Join the threads and cleanup the shared memory to avoid leaks

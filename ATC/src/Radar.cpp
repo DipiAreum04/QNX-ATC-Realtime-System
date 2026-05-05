@@ -107,8 +107,11 @@ void Radar::ListenAirspaceArrivalAndDeparture() {
         Message msg;
         int rcvid = MsgReceive(Radar_channel->chid, &msg, sizeof(msg), nullptr); // Receive message from the channel
         if (rcvid == -1) {
-        	std::cerr << "Error receiving airspace message:" << strerror(errno) << std::endl;
-        	continue;
+            if (stopThreads.load()) {
+                break;
+            }
+            std::cerr << "Error receiving airspace message: " << strerror(errno) << std::endl;
+            continue;
         }
 
         if (rcvid == 0) {
@@ -151,8 +154,6 @@ void Radar::ListenUpdatePosition() {
         	// Only write empty buffer once after transition to empty
         	writeToSharedMemory();  // Write to shared mem when all planes have left the airspace //For future Use
         	wasAirspaceEmpty = true;  // Set flag to indicate airspace is empty
-        } else{
-        	std::cout << "Airspace is empty\n";
         }
 
     }
@@ -183,9 +184,10 @@ void Radar::pollAirspace() {
 				msg_plane_info plane_info = getAircraftData(planeID);
 				inactiveBuffer.emplace_back(plane_info);
 			} catch (const std::exception& e) {
-				// if error to process plane get next id and exception description
-				std::cerr << "Radar: Failed to get plane data " << planeID << ": " << e.what() << "\n";
-				continue;
+				// If the plane is no longer reachable, remove it from the airspace
+				std::cerr << "Radar: plane " << planeID << " no longer reachable (" << e.what() << ")\n";
+				std::lock_guard<std::mutex> lk(airspaceMutex);
+				planesInAirspace.erase(planeID);
 			}
 		}
 	}

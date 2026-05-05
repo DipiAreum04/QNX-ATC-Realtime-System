@@ -2,8 +2,30 @@
 #include "ATCTimer.h"
 #include <iomanip>
 #include <sstream>
+#include <string>
 #include <cstring>
 #include <chrono>
+
+namespace {
+
+// Inner width between Unicode box sides ║ … ║ (must match top/rule/bottom lines).
+// Inner text must be plain ASCII so byte length equals terminal cell width (UTF-8 would break padInner).
+constexpr int kBoxInnerWidth = 82;
+
+std::string padInner(std::string s) {
+    if (s.size() > static_cast<size_t>(kBoxInnerWidth)) {
+        s.resize(static_cast<size_t>(kBoxInnerWidth));
+    } else {
+        s.append(static_cast<size_t>(kBoxInnerWidth) - s.size(), ' ');
+    }
+    return s;
+}
+
+void printBoxLine(std::ostream& os, const std::string& inner) {
+    os << u8"║" << padInner(inner) << u8"║" << '\n';
+}
+
+} // namespace
 
 #define SHM_NAME "/radar_shared_mem"
 #define SHM_SEM_NAME "/radar_shm_sem"
@@ -219,58 +241,66 @@ void Display::render(const std::vector<msg_plane_info>& planes, int count, uint6
 
     // Print the header
     std::cout << "╔══════════════════════════════════════════════════════════════════════════════════╗\n";
-    std::cout << "║                         AIR TRAFFIC CONTROL - DISPLAY                            ║\n";
+    printBoxLine(std::cout, "                         AIR TRAFFIC CONTROL - DISPLAY                            ");
     std::cout << "╠══════════════════════════════════════════════════════════════════════════════════╣\n";
 
-    // Print the timestamp and the number of aircraft in the airspace
-    std::cout << "║  Timestamp: " << std::setw(15) << std::left << timestamp
-              << "    Aircraft in airspace: " << std::setw(3) << count
-              << std::setw(20) << "" << "║\n";
-
-    std::cout << "╠══════════════════════════════════════════════════════════════════════════════════╣\n";
-
-    // Column headers
-    std::cout << " ║ " << std::setw(4) << std::left << "ID"
-              << " │ " << std::setw(10) << std::right << "Pos X"
-              << " │ " << std::setw(10) << "Pos Y"
-              << " │ " << std::setw(10) << "Pos Z"
-              << " │ " << std::setw(10) << "Vel X"
-              << " │ " << std::setw(10) << "Vel Y"
-              << " │ " << std::setw(10) << "Vel Z"
-              << " ║\n";
-
-    std::cout << "╠══════════════════════════════════════════════════════════════════════════════════╣\n";
-
-    // Print the plane data rows
-    for (const auto& p : planes) {
-        std::cout << " ║ " << std::setw(4) << std::left << p.id
-                  << " │ " << std::setw(10) << std::right << std::fixed << std::setprecision(1) << p.PositionX
-                  << " │ " << std::setw(10) << p.PositionY
-                  << " │ " << std::setw(10) << p.PositionZ
-                  << " │ " << std::setw(10) << p.VelocityX
-                  << " │ " << std::setw(10) << p.VelocityY
-                  << " │ " << std::setw(10) << p.VelocityZ
-                  << " ║\n";
+    {
+        std::ostringstream row;
+        row << "  Timestamp: " << std::left << std::setw(12) << timestamp
+            << "  Aircraft in airspace: " << std::setw(3) << std::right << count;
+        printBoxLine(std::cout, row.str());
     }
 
-    // If the planes vector is empty, print empty message
+    std::cout << "╠══════════════════════════════════════════════════════════════════════════════════╣\n";
+
+    {
+        std::ostringstream row;
+        // ASCII " | " only (Unicode │ is multi-byte: padInner counts bytes, not columns).
+        row << ' ' << std::left << std::setw(4) << "ID"
+            << " | " << std::right << std::setw(8) << "Pos X"
+            << " | " << std::setw(8) << "Pos Y"
+            << " | " << std::setw(8) << "Pos Z"
+            << " | " << std::setw(8) << "Vel X"
+            << " | " << std::setw(8) << "Vel Y"
+            << " | " << std::setw(8) << "Vel Z";
+        printBoxLine(std::cout, row.str());
+    }
+
+    std::cout << "╠══════════════════════════════════════════════════════════════════════════════════╣\n";
+
+    // Print the plane data rows (8-char numeric columns so row fits kBoxInnerWidth)
+    for (const auto& p : planes) {
+        std::ostringstream row;
+        row << ' ' << std::left << std::setw(4) << p.id
+            << " | " << std::right << std::fixed << std::setprecision(1) << std::setw(8) << p.PositionX
+            << " | " << std::setw(8) << p.PositionY
+            << " | " << std::setw(8) << p.PositionZ
+            << " | " << std::setw(8) << p.VelocityX
+            << " | " << std::setw(8) << p.VelocityY
+            << " | " << std::setw(8) << p.VelocityZ;
+        printBoxLine(std::cout, row.str());
+    }
+
     if (planes.empty()) {
-        std::cout << "║                          (no aircraft data)                                    ║\n";
+        printBoxLine(std::cout, "  (no aircraft data)");
     }
 
     std::cout << "╠══════════════════════════════════════════════════════════════════════════════════╣\n";
 
     // Collision warnings section
     {
-        std::lock_guard<std::mutex> lock(collision_mutex); // Lock the mutex to synchronize access to the collision warnings
-        // If the collision warnings vector is empty, print all clear message
+        std::lock_guard<std::mutex> lock(collision_mutex);
         if (collision_warnings.empty()) {
-            std::cout << "║  Status: ALL CLEAR - No collision warnings                                    ║\n";
+            printBoxLine(std::cout, "  Status: ALL CLEAR - No collision warnings");
         } else {
-            // If the collision warnings vector is not empty, print the collision alerts message
-            std::cout << "║  \033[1;31m!!! COLLISION ALERTS !!!\033[0m                                                    ║\n";
+            std::cout << "║  \033[1;31m" << std::left << std::setw(80) << "!!! COLLISION ALERTS !!!"
+                      << "\033[0m║\n";
             for (const auto& warning : collision_warnings) {
-                std::cout << "║  \033[1;31m" << std::setw(78) << std::left << warning << "\033[0m║\n";
+                std::string w = warning;
+                if (w.size() > 80) {
+                    w.resize(80);
+                }
+                std::cout << "║  \033[1;31m" << std::left << std::setw(80) << w << "\033[0m║\n";
             }
         }
     }
