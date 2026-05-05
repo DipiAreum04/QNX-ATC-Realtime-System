@@ -6,8 +6,6 @@ A simplified en-route Air Traffic Monitoring and Control (ATC) System simulation
 
 This project simulates an en-route ATC system managing aircraft movement through a 3D airspace (100,000 × 100,000 × 25,000 units, positioned 15,000 ft above sea level). The system tracks aircraft positions in real time, predicts separation violations, issues collision warnings, and supports runtime operator control — all running as concurrent processes on a single-processor QNX target.
 
----
-
 ## System Architecture
 
 The system is split into three QNX processes, each built as a separate project:
@@ -39,7 +37,6 @@ Aircraft threads ── MsgSend/MsgReply ──> Radar (dipi_radar channel)
                                   OperatorConsole
 ```
 
----
 
 ## Components
 
@@ -61,7 +58,6 @@ The Operator Console is the controller's interface. It runs as a background thre
 ### Display
 The Display periodically reads the shared airspace state and prints a formatted table showing every aircraft's current ID, position, and velocity. It also listens for collision warnings sent by the Computer System and prints them as highlighted alerts. Two threads run inside the Display — one for rendering the table, one for receiving warnings, and a mutex keeps them from interfering with each other.
 
----
 
 ## Operator Console Commands
 
@@ -89,7 +85,6 @@ If the aircraft is not in the airspace or its channel is unreachable:
 No augmented data for plane 2 : not in airspace or channel unavailable.
 ```
 
----
 
 ## Message Types
 
@@ -108,7 +103,7 @@ Defined in `Msg_structs.h`:
 | `COLLISION_DETECTED` | ComputerSystem alerts Display |
 | `EXIT` | Shutdown signal |
 
----
+
 
 ## Concurrency & Synchronization
 
@@ -137,7 +132,7 @@ The Radar writes the latest aircraft snapshot to `/radar_shared_mem` (a `SharedM
 - `bufferSwitchMutex` — protects the double-buffer swap and shared memory write in Radar
 - `collision_mutex` — protects the collision warning list in Display, where one thread receives new alerts while another renders them to the console
 
----
+
 
 ## Project Structure
 
@@ -170,7 +165,6 @@ Display/
     └── Msg_structs.h
 ```
 
----
 
 ## Input File Format
 
@@ -192,7 +186,7 @@ Each line defines one aircraft:
 - `X, Y, Z` — entry coordinates
 - `SpeedX, SpeedY, SpeedZ` — velocity components (units/second)
 
----
+
 
 ## Build & Run
 
@@ -224,7 +218,7 @@ Each line defines one aircraft:
 > - Semaphore: `/radar_shm_sem_<group>`
 > - Aircraft channels: `<group><ID>`
 
----
+
 
 ## Results
 
@@ -254,7 +248,6 @@ Stress test using a 100-plane input file. The system successfully tracked 69 con
 Concordia University — Gina Cody School of Engineering and Computer Science  
 COEN 320 — Introduction to Real-Time Systems
 
----
 
 ## License
 
