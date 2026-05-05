@@ -9,7 +9,7 @@
 namespace {
 
 // Inner width between Unicode box sides ║ … ║ (must match top/rule/bottom lines).
-// Inner text must be plain ASCII so byte length equals terminal cell width (UTF-8 would break padInner).
+// Inner text must be plain ASCII so byte length equals terminal cell width.
 constexpr int kBoxInnerWidth = 82;
 
 std::string padInner(std::string s) {
@@ -26,6 +26,7 @@ void printBoxLine(std::ostream& os, const std::string& inner) {
 }
 
 } // namespace
+
 
 #define SHM_NAME "/radar_shared_mem"
 #define SHM_SEM_NAME "/radar_shm_sem"
@@ -208,7 +209,7 @@ void Display::displayLoop() {
         std::vector<msg_plane_info> planes;
         int count = 0;
         uint64_t timestamp = 0;
-        // add the aircraft data (count, timestamp and planes) to the planes vector
+        // Add the aircraft data (count, timestamp and planes) to the planes vector
         if (!isEmpty) {
             count = shared_mem->count;
             timestamp = shared_mem->timestamp;

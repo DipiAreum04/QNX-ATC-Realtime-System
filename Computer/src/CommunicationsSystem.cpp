@@ -44,15 +44,36 @@ void CommunicationsSystem::HandleCommunications() {
             continue;
         }
 
-        // Send a reply to the Computer System
-        int reply = 0;
-        MsgReply(rcvid, 0, &reply, sizeof(reply));
-
         if (msg.type == MessageType::EXIT) {
+            int reply = 0;
+            MsgReply(rcvid, 0, &reply, sizeof(reply));
             break;
         }
 
-        // Create a message to send to the aircraft
+        // If the message type is REQUEST_AUGMENTED_INFO, send a message to the aircraft and wait for the reply
+        if (msg.type == MessageType::REQUEST_AUGMENTED_INFO) {
+            Message toAircraft{};
+            toAircraft.header = true;
+            toAircraft.type = msg.type;
+            toAircraft.planeID = msg.planeID;
+            toAircraft.data = nullptr;
+            toAircraft.dataSize = 0;
+            Message_inter_process aircraftReply{};
+            if (messageAircraftAugmented(toAircraft, aircraftReply)) {
+                MsgReply(rcvid, 0, &aircraftReply, sizeof(aircraftReply));
+            } else {
+                aircraftReply.header = true;
+                aircraftReply.type = MessageType::REQUEST_AUGMENTED_INFO;
+                aircraftReply.planeID = msg.planeID;
+                aircraftReply.dataSize = 0;
+                MsgReply(rcvid, -1, &aircraftReply, sizeof(aircraftReply));
+            }
+            continue;
+        }
+
+        int reply = 0;
+        MsgReply(rcvid, 0, &reply, sizeof(reply));
+
         Message toAircraft{};
         toAircraft.header = true;
         toAircraft.type = msg.type;
@@ -94,4 +115,37 @@ void CommunicationsSystem::messageAircraft(const Message& msg) {
     
     // Close the channel to avoid leaks
     name_close(coid);
+}
+
+
+// Method to send a message to the aircraft and check if the aircraft replied with a full msg_plane_info payload
+bool CommunicationsSystem::messageAircraftAugmented(const Message& msg, Message_inter_process& outReply) {
+    std::string channel = "dipi" + std::to_string(msg.planeID);
+    int coid = name_open(channel.c_str(), 0);
+    if (coid == -1) {
+        std::cerr << "CommunicationsSystem: Failed to connect to aircraft " << msg.planeID << "\n";
+        return false;
+    }
+
+    // Create a message to send to the aircraft
+    Message_inter_process ipc_msg{};
+    ipc_msg.header = true;
+    ipc_msg.type = msg.type;
+    ipc_msg.planeID = msg.planeID;
+    ipc_msg.dataSize = msg.dataSize;
+    if (msg.data && msg.dataSize > 0 && msg.dataSize <= ipc_msg.data.size()) {
+        std::memcpy(ipc_msg.data.data(), msg.data, msg.dataSize);
+    }
+
+    // Send the message to the aircraft
+    outReply = Message_inter_process{};
+    int status = MsgSend(coid, &ipc_msg, sizeof(ipc_msg), &outReply, sizeof(outReply));
+    name_close(coid);
+
+    // If the message is not sent, print an error message and return false
+    if (status == -1) {
+        perror("CommunicationsSystem: Failed to send augmented-info request to aircraft");
+        return false;
+    }
+    return outReply.dataSize >= sizeof(msg_plane_info);
 }

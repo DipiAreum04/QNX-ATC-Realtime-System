@@ -1,5 +1,6 @@
 #include "OperatorConsole.h"
 #include <cstring>
+#include <iomanip>
 #include <sstream>
 #include <sys/neutrino.h>
 
@@ -114,8 +115,34 @@ void OperatorConsole::HandleConsoleInputs() {
                 std::cout << "Bad format. Use: 4 <planeID>\n";
                 continue;
             }
-            msg.type = MessageType::REQUEST_AUGMENTED_INFO;
-            msg.planeID = planeID;
+            Message_inter_process req{};
+            req.header = true;
+            req.type = MessageType::REQUEST_AUGMENTED_INFO;
+            req.planeID = planeID;
+
+            int coid = ConnectAttach(0, 0, comms_chid, _NTO_SIDE_CHANNEL, 0);
+            if (coid == -1) {
+                std::cout << "Failed to send. Retry.\n";
+                continue;
+            }
+            Message_inter_process reply{};
+            if (MsgSend(coid, &req, sizeof(req), &reply, sizeof(reply)) == -1) {
+                std::cout << "Failed to reach communications or plane " << planeID << ".\n";
+            } else if (reply.dataSize >= sizeof(msg_plane_info)) {
+                msg_plane_info info{};
+                std::memcpy(&info, reply.data.data(), sizeof(info));
+                std::cout << "[t=" << shared_mem->timestamp << "] Augmented info - Plane " << info.id
+                          << "\n  Position: ("
+                          << std::fixed << std::setprecision(1)
+                          << info.PositionX << ", " << info.PositionY << ", " << info.PositionZ << ")\n"
+                          << "  Velocity: ("
+                          << info.VelocityX << ", " << info.VelocityY << ", " << info.VelocityZ << ")\n";
+            } else {
+                std::cout << "No augmented data for plane " << planeID
+                          << " : not in airspace or channel unavailable.\n";
+            }
+            ConnectDetach(coid);
+            continue;
         }
 
         // if cmd is 5, change the time constraint for collisions

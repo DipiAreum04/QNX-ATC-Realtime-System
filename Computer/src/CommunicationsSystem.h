@@ -15,6 +15,10 @@ public:
 private:
     void HandleCommunications(); // Method to handle communications with the aircraft
     void messageAircraft(const Message& msg); // Method to send a message to the aircraft
+
+    // Method to send a message to the aircraft and check if the aircraft replied with a full msg_plane_info payload
+    bool messageAircraftAugmented(const Message& msg, Message_inter_process& outReply); 
+    
     std::thread Communications_System; // Thread to handle the communications system
 };
 
