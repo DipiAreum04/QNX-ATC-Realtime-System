@@ -2,8 +2,6 @@
 
 A simplified en-route Air Traffic Monitoring and Control (ATC) System simulation built in C++ on **QNX Neutrino RTOS**, developed as part of the COEN 320 Real-Time Systems course project at Concordia University.
 
----
-
 ## Overview
 
 This project simulates an en-route ATC system managing aircraft movement through a 3D airspace (100,000 × 100,000 × 25,000 units, positioned 15,000 ft above sea level). The system tracks aircraft positions in real time, predicts separation violations, issues collision warnings, and supports runtime operator control — all running as concurrent processes on a single-processor QNX target.
