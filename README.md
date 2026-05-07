@@ -1,6 +1,6 @@
 # QNX ATC Realtime System
 
-A simplified en-route Air Traffic Monitoring and Control (ATC) System simulation built in C++ on **QNX Neutrino RTOS**, developed as part of the COEN 320 Real-Time Systems course project at Concordia University.
+A simplified en-route Air Traffic Monitoring and Control (ATC) System simulation built in C++ on **QNX Neutrino RTOS**, developed as part of the Introduction to Real-Time Systems course project at Concordia University.
 
 ## Overview
 
